@@ -1,0 +1,39 @@
+{
+    "compilerOptions": {
+        "emitDecoratorMetadata": true,
+        "declaration": true,
+        "module": "commonjs",
+        "noImplicitAny": false,
+        "noLib": false,
+        "rootDir": ".",
+        "sourceMap": true,
+        "sourceRoot": ".",
+        "target": "es5",
+        "outDir": "./dist"
+    },
+    "formatCodeOptions": {
+        "indentSize": 2,
+        "tabSize": 2
+    },
+    "filesGlob": [
+        "./lib/**/*.ts",
+        "./test/**/*.ts",
+        "./typings/**/*.d.ts",
+        "./node_modules/*/*.d.ts",
+        "./node_modules/typescript/bin/typescript.d.ts"
+    ],
+    "compileOnSave": true,
+    "files": [
+        "./lib/index.ts",
+        "./lib/model.ts",
+        "./lib/packageUtils.ts",
+        "./lib/rawGenerator.ts",
+        "./lib/readerWriter.ts",
+        "./test/test.ts",
+        "./typings/es6/es6.d.ts",
+        "./typings/node/node.d.ts",
+        "./typings/tsd.d.ts",
+        "./node_modules/typescript-schema/typescript-schema.d.ts",
+        "./node_modules/typescript/bin/typescript.d.ts"
+    ]
+}

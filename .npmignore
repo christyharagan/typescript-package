@@ -1,0 +1,4 @@
+node_modules
+module
+.tmp
+gulpfile.ts
