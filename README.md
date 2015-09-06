@@ -22,7 +22,7 @@ Basic Usage:
 import * as p from 'typescript-package'
 
 // Create a raw model from some typescript files
-let modules = generateRawPackage('/myPkgDir/')
+let modules = p.generateRawPackage('/myPkgDir/')
 
 // Pass this to typescript-schema to convert to a resolved model
 ```
