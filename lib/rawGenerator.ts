@@ -13,8 +13,10 @@ export function generateRawPackage(pkgDir: string, options?: ts.CompilerOptions,
   files = loadAllFiles(files)
 
   let pkgs: s.Map<[string, string]> = {}
+  let p = ts.createProgram(files, options || { target: ts.ScriptTarget.ES5 }, host)
 
-  files.forEach(function(file) {
+  p.getSourceFiles().forEach(function(sf) {
+    let file = sf.fileName
     let dirName = path.dirname(file)
     while (true) {
       if (fs.existsSync(path.join(dirName, 'package.json'))) {
@@ -35,7 +37,7 @@ export function generateRawPackage(pkgDir: string, options?: ts.CompilerOptions,
     return path.posix.join(pkg[0], path.posix.relative(pkg[1], moduleName))
   }
 
-  return generateRawModules(ts.createProgram(files, options || { target: ts.ScriptTarget.ES5 }, host), pkgDir, relativePrefix)
+  return generateRawModules(p, pkgDir, relativePrefix)
 }
 
 export function generateRawModules(p: ts.Program, rootDir: string, relativePrefix?: string|utils.RelativePrefix): s.Map<s.RawTypeContainer> {
@@ -170,9 +172,12 @@ export function generateRawModules(p: ts.Program, rootDir: string, relativePrefi
               processSymbolTable(typeContainerName, typeContainer, tc.getTypeAtLocation(importDec).symbol.exports || tc.getTypeAtLocation(importDec).symbol.members)
             }
           } else {
-            let ref = getReference(dec, dec.kind === ts.SyntaxKind.ModuleDeclaration)
-            if (ref.module !== typeContainerName) {
-              typeContainer.reexports[name] = ref
+            // TODO: How do we handle call signatures as exports?
+            if (dec.kind !== ts.SyntaxKind.CallSignature) {
+              let ref = getReference(dec, dec.kind === ts.SyntaxKind.ModuleDeclaration)
+              if (ref.module !== typeContainerName) {
+                typeContainer.reexports[name] = ref
+              }
             }
           }
         })
