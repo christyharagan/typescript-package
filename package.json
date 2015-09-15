@@ -1,17 +1,14 @@
 {
   "name": "typescript-package",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A convenience library for generating typescript-schema reflective models from typescript code.",
-  "main": "./dist/lib/index.js",
-  "typings": "./typescript-package.d.ts",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
   "repository": "christyharagan/typescript-package",
   "author": {
     "name": "Christy Haragan",
     "email": "christy.haragan.github@gmail.com",
     "url": "https://github.com/christyharagan"
-  },
-  "typescript": {
-    "definition": "typescript-package.d.ts"
   },
   "keywords": [
     "typescript",
@@ -22,6 +19,6 @@
   "license": "MIT",
   "dependencies": {
     "typescript": "^1.5.3",
-    "typescript-schema": "^0.5.0"
+    "typescript-schema": "^0.6.0"
   }
 }

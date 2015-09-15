@@ -3,37 +3,41 @@
         "emitDecoratorMetadata": true,
         "declaration": true,
         "module": "commonjs",
-        "noImplicitAny": false,
-        "noLib": false,
-        "rootDir": ".",
+        "rootDir": "./src",
         "sourceMap": true,
         "sourceRoot": ".",
         "target": "es5",
-        "outDir": "./dist"
+        "outDir": "."
     },
     "formatCodeOptions": {
         "indentSize": 2,
         "tabSize": 2
     },
     "filesGlob": [
-        "./lib/**/*.ts",
+        "./src/**/*.ts",
         "./test/**/*.ts",
         "./typings/**/*.d.ts",
         "./node_modules/*/*.d.ts",
+        "./lib/**/*.d.ts",
         "./node_modules/typescript/bin/typescript.d.ts"
     ],
     "compileOnSave": true,
     "files": [
-        "./lib/index.ts",
-        "./lib/model.ts",
-        "./lib/packageUtils.ts",
-        "./lib/rawGenerator.ts",
-        "./lib/readerWriter.ts",
-        "./test/test.ts",
+        "./src/lib/index.ts",
+        "./src/lib/model.ts",
+        "./src/lib/packageUtils.ts",
+        "./src/lib/rawGenerator.ts",
+        "./src/lib/readerWriter.ts",
+        "./src/test/test.ts",
+        "./test/test.d.ts",
         "./typings/es6/es6.d.ts",
         "./typings/node/node.d.ts",
         "./typings/tsd.d.ts",
-        "./node_modules/typescript-schema/typescript-schema.d.ts",
+        "./lib/index.d.ts",
+        "./lib/model.d.ts",
+        "./lib/packageUtils.d.ts",
+        "./lib/rawGenerator.d.ts",
+        "./lib/readerWriter.d.ts",
         "./node_modules/typescript/bin/typescript.d.ts"
     ]
 }
