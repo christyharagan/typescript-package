@@ -37,7 +37,6 @@
         "./lib/model.d.ts",
         "./lib/packageUtils.d.ts",
         "./lib/rawGenerator.d.ts",
-        "./lib/readerWriter.d.ts",
-        "./node_modules/typescript/bin/typescript.d.ts"
+        "./lib/readerWriter.d.ts"
     ]
 }
