@@ -1,4 +1,1 @@
-export function testDecorator(){
-  return function(target: any): void {
-  }
-}
+export declare function testDecorator(): (target: any) => void;

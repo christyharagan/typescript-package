@@ -2,7 +2,6 @@ import {packageAstToFactory} from '../lib/astToFactory'
 import * as fs from 'fs'
 import * as m from '../lib/model'
 import * as s from 'typescript-schema'
-import {testDecorator} from './decorators'
 
 let rawPkg = packageAstToFactory('.')
 
@@ -13,7 +12,4 @@ let reflective = rawPkg.construct(s.factoryToReflective())()
 
 //console.log(reflective)
 
-@testDecorator()
-export class A{
-
-}
+export function a(){}

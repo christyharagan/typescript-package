@@ -12,7 +12,7 @@ export function packageAstToFactory(pkgDir: string, options?: ts.CompilerOptions
   files = loadAllFiles(files)
 
   let pkgs: s.KeyValue<[string, string]> = {}
-  let p = ts.createProgram(files, options || { target: ts.ScriptTarget.ES5 }, host)
+  let p = ts.createProgram(files, options || { target: ts.ScriptTarget.ES5, moduleResolution: ts.ModuleResolutionKind.NodeJs }, host)
 
   p.getSourceFiles().forEach(function(sf) {
     let file = sf.fileName
@@ -46,6 +46,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
   let moduleFactories: s.KeyValue<s.ModuleFactory> = {}
   let globals = getGlobals(p)
   let tc = p.getTypeChecker()
+  let namespacesAsModules: s.KeyValue<[ts.Symbol, ts.SourceFile][]> = {}
 
   p.getSourceFiles().forEach(sf => {
     processSourceFile(sf)
@@ -55,7 +56,21 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
     let moduleNames: string[] = []
     let isModule = false
     ts.forEachChild(sf, function(node) {
-      if (isExported(node) || node.kind === ts.SyntaxKind.ExportDeclaration) {
+      if (node.kind === ts.SyntaxKind.ExportAssignment) {
+        isModule = true
+
+        let exportAssignment = <ts.ExportAssignment>node
+        let exportSymbol = tc.getSymbolAtLocation(exportAssignment.expression)
+        if (exportSymbol && exportSymbol.declarations && exportSymbol.declarations[0].kind === ts.SyntaxKind.ModuleDeclaration) {
+          let modDec = <ts.ModuleDeclaration>exportSymbol.declarations[0]
+          let forName = namespacesAsModules[modDec.name.text]
+          if (!forName) {
+            forName = []
+            namespacesAsModules[modDec.name.text] = forName
+          }
+          forName.push([exportSymbol, sf])
+        }
+      } else if (isExported(node) || node.kind === ts.SyntaxKind.ExportDeclaration) {
         isModule = true
       }
     })
@@ -71,10 +86,11 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
   }
 
   function processModule(moduleName: string, moduleNode: ts.Node, module?: s.ModuleFactory, isDeclared?: boolean) {
+    module = module || moduleFactories[moduleName]
     if (!module) {
       module = new s.ModuleFactory(moduleName)
+      moduleFactories[moduleName] = module
     }
-    moduleFactories[moduleName] = module
 
     processContainer(module, moduleNode, isDeclared)
 
@@ -93,21 +109,8 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
   function processExport(container: s.AbstractContainerFactory, node: ts.Node) {
     switch (node.kind) {
       case ts.SyntaxKind.VariableStatement:
-        let vars = <ts.VariableStatement>node
-        let valueKind: s.ValueKind = vars.declarationList.flags === ts.NodeFlags.Const ? s.ValueKind.CONST : (vars.declarationList.flags === ts.NodeFlags.Let ? s.ValueKind.LET : s.ValueKind.VAR)
-        vars.declarationList.declarations.forEach(function(varDec) {
-          let name = getName(varDec.name)
-          if (Array.isArray(name)) {
-            // TODO
-          } else {
-            let s = container.addValue(name)
-            s.valueKind = valueKind
-            s.type = processType(tc.getTypeAtLocation(varDec), {})
-            if (varDec.initializer) {
-              s.initializer = processExpression(varDec.initializer, {})
-            }
-          }
-        })
+      case ts.SyntaxKind.FunctionDeclaration:
+        populateValue(node, container)
         break
       case ts.SyntaxKind.InterfaceDeclaration:
         populateInterface(<ts.InterfaceDeclaration>node, container, {})
@@ -116,23 +119,10 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
         populateClass(<ts.ClassDeclaration>node, container, {})
         break
       case ts.SyntaxKind.EnumDeclaration:
-        let enumDec = <ts.EnumDeclaration>node
-        let enumFactory = container.addEnum(enumDec.name.text)
-        enumDec.members.forEach(function(member){
-          let memberFactory = enumFactory.addMember(<string>getName(member.name))
-          if (member.initializer) {
-            memberFactory.initializer = processExpression(member.initializer, {})
-          }
-        })
+        populateEnum(<ts.EnumDeclaration>node, container)
         break
       case ts.SyntaxKind.TypeAliasDeclaration:
         populateTypeAliasConstructor(<ts.TypeAliasDeclaration>node, container, {})
-        break
-      case ts.SyntaxKind.FunctionDeclaration:
-        let func = <ts.FunctionDeclaration>node
-        let valueFactory = container.addValue(func.name.text)
-        valueFactory.valueKind = s.ValueKind.FUNCTION
-        valueFactory.type = processSignatureType(func, false, {})
         break
     }
   }
@@ -189,7 +179,32 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
           } else {
             // TODO: How do we handle call signatures as exports?
             if (dec.kind !== ts.SyntaxKind.CallSignature) {
-              addReference(<s.ContainedFactory<any>>getReference(dec, dec.kind === ts.SyntaxKind.ModuleDeclaration), name, typeContainer)
+              let ref = <s.ContainedFactory<any>>getReference(dec, dec.kind === ts.SyntaxKind.ModuleDeclaration)
+              if (ref.parent === typeContainer) {
+                switch (ref.modelKind) {
+                  case s.ModelKind.CLASS_CONSTRUCTOR:
+                    populateClass(<ts.ClassDeclaration>dec, typeContainer, {})
+                    break
+                  case s.ModelKind.INTERFACE_CONSTRUCTOR:
+                    populateInterface(<ts.InterfaceDeclaration>dec, typeContainer, {})
+                    break
+                  case s.ModelKind.TYPE_ALIAS_CONSTRUCTOR:
+                    populateTypeAliasConstructor(<ts.TypeAliasDeclaration>dec, typeContainer, {})
+                    break
+                  case s.ModelKind.TYPE:
+                    populateEnum(<ts.EnumDeclaration>dec, typeContainer)
+                    break
+                  case s.ModelKind.VALUE:
+                    populateValue(dec, typeContainer)
+                    break
+                  case s.ModelKind.CONTAINER:
+                    processContainer(<s.NamespaceFactory>ref, dec, true)
+                    break
+                  default:
+                }
+              } else {
+                addReference(ref, name, typeContainer)
+              }
             }
           }
         })
@@ -206,7 +221,6 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
           let exportAssignment = <ts.ExportAssignment>child
           let exportSymbol = tc.getSymbolAtLocation(exportAssignment.expression)
           let exportType = tc.getTypeAtLocation(exportAssignment.expression)
-
           if (exportType && exportType.symbol && exportType.symbol.exports) {
             // TODO: There is a funky thing when the export is a class and a module (a la the Twitter typings)
             // E.g; declare class Twitter{} declare module Twitter{}
@@ -222,21 +236,8 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
           let exportDec = <ts.ExportDeclaration>child
           let exportClause = exportDec.exportClause
           if (exportClause) {
-//            let reference = getReference(tc.getSymbolAtLocation(exportDec.moduleSpecifier), true)
             exportDec.exportClause.elements.forEach(function(element) {
               addReference(<s.ContainedFactory<any>>getReference(tc.getSymbolAtLocation(element), false), element.name.text, container)
-              // if (element.propertyName) {
-              //   addReference()
-              //   container.reexports[element.name.text] = {
-              //     module: moduleName,
-              //     name: element.propertyName.text
-              //   }
-              // } else {
-              //   container.reexports[element.name.text] = {
-              //     module: moduleName,
-              //     name: element.name.text
-              //   }
-              // }
             })
           }
           processSymbolTable(container, tc.getSymbolAtLocation(exportDec.moduleSpecifier).exports || tc.getSymbolAtLocation(exportDec.moduleSpecifier).members)
@@ -259,7 +260,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
                   let namespace = container.addNamespace(name)
                   ts.forEachChild(modDec, function(child) {
                     if (child.kind === ts.SyntaxKind.ModuleBlock) {
-                      processContainer(namespace, child, isDeclaredModule)
+                      processContainer(namespace, child, isDeclaredModule || (modDec.modifiers && modDec.modifiers.filter(mod=>mod.kind === ts.SyntaxKind.DeclareKeyword).length > 0))
                     }
                   })
                 }
@@ -334,6 +335,21 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
         switch (node.kind) {
           case ts.SyntaxKind.ModuleDeclaration:
             let mod = <ts.ModuleDeclaration>node
+            let forName = namespacesAsModules[mod.name.text]
+            if (forName) {
+              let shouldBreak = false
+              let modSymbol = tc.getTypeAtLocation(mod).symbol
+              for (let i = 0; i < forName.length; i++) {
+                if (forName[i][0] === modSymbol) {
+                  moduleName = utils.fileNameToModuleName(forName[i][1].fileName, rootDir, relativePrefix)
+                  shouldBreak = true
+                  break
+                }
+              }
+              if (shouldBreak) {
+                break
+              }
+            }
             if (node.parent.kind === ts.SyntaxKind.SourceFile && globals.modules[mod.name.text]) {
               moduleName = mod.name.text
               break
@@ -563,8 +579,6 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
             let compositeType = new s.CompositeTypeFactory(null, false)
             populateMembers(compositeType, typeLiteral.members, false, typeParameters)
             return compositeType
-          // case ts.SyntaxKind.ModuleDeclaration:
-          //   return getReference(type.symbol, true)
           default:
             throw new Error('Unrecognised Type: ' + type.flags + ' with declaration type: ' + declaration.kind)
         }
@@ -666,6 +680,55 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
     })
   }
 
+  function processVariableDeclaration(varDec:ts.VariableDeclaration, parent:s.ContainerFactory) {
+    let valueKind: s.ValueKind = varDec.flags === ts.NodeFlags.Const ? s.ValueKind.CONST : (varDec.flags === ts.NodeFlags.Let ? s.ValueKind.LET : s.ValueKind.VAR)
+    let name = getName(varDec.name)
+    if (Array.isArray(name)) {
+      // TODO
+    } else {
+      let s = parent.addValue(name)
+      s.valueKind = valueKind
+      s.type = processType(tc.getTypeAtLocation(varDec), {})
+      if (!s.type) {
+        console.log(tc.getTypeAtLocation(varDec))
+      }
+      if (varDec.initializer) {
+        s.initializer = processExpression(varDec.initializer, {})
+      }
+    }
+  }
+
+  function populateValue(node:ts.Node, parent:s.ContainerFactory) {
+    switch (node.kind) {
+      case ts.SyntaxKind.VariableDeclaration:
+        let varDec = <ts.VariableDeclaration>node
+        processVariableDeclaration(varDec, parent)
+        break
+      case ts.SyntaxKind.VariableStatement:
+        let vars = <ts.VariableStatement>node
+        vars.declarationList.declarations.forEach(function(varDec) {
+          processVariableDeclaration(varDec, parent)
+        })
+        break
+      case ts.SyntaxKind.FunctionDeclaration:
+        let func = <ts.FunctionDeclaration>node
+        let valueFactory = parent.addValue(func.name.text)
+        valueFactory.valueKind = s.ValueKind.FUNCTION
+        valueFactory.type = processSignatureType(func, false, {})
+        break
+    }
+  }
+
+  function populateEnum(enumDec:ts.EnumDeclaration, parent:s.ContainerFactory) {
+    let enumFactory = parent.addEnum(enumDec.name.text)
+    enumDec.members.forEach(function(member){
+      let memberFactory = enumFactory.addMember(<string>getName(member.name))
+      if (member.initializer) {
+        memberFactory.initializer = processExpression(member.initializer, {})
+      }
+    })
+  }
+
   function populateInterface(intDec: ts.InterfaceDeclaration, parent: s.AbstractContainerFactory, parentTypeParameters: s.KeyValue<s.TypeParameterFactory<any>>) {
     let intName = intDec.name.text
     let int = parent.addInterfaceConstructor(intName)
@@ -723,12 +786,11 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
 
   function populateClass(clsDec: ts.ClassDeclaration, parent: s.AbstractContainerFactory, parentTypeParameters: s.KeyValue<s.TypeParameterFactory<any>>) {
     let name = clsDec.name.text
-
     let cls = parent.addClassConstructor(name)
     let instanceType = cls.createInstanceType()
     let staticType = cls.createStaticType()
 
-    cls.isAbstract = clsDec.modifiers.filter(modifier=> modifier.kind === ts.SyntaxKind.AbstractKeyword).length === 1
+    cls.isAbstract = clsDec.modifiers && clsDec.modifiers.filter(modifier=> modifier.kind === ts.SyntaxKind.AbstractKeyword).length === 1
 
     let newTypeParameterFactories:s.KeyValue<s.TypeParameterFactory<any>>
     if (clsDec.typeParameters) {
@@ -775,7 +837,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
     Object.keys(parentTypeParameters).forEach(function(name){
       newTypeParameterFactories[name] = parentTypeParameters[name]
     })
-    if (typeParameters) {
+    if (typeParameters && parent.typeParameters.length === 0) {
       typeParameters.forEach(function(typeParameter){
         let typeParameterFactory = parent.addTypeParameter(typeParameter.name.text)
         if (typeParameter.constraint) {

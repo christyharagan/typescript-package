@@ -7,7 +7,8 @@
         "sourceMap": true,
         "sourceRoot": ".",
         "target": "es5",
-        "outDir": "."
+        "outDir": ".",
+        "moduleResolution": "node"
     },
     "formatCodeOptions": {
         "indentSize": 2,
@@ -30,8 +31,10 @@
         "./src/lib/readerWriter.ts",
         "./src/test/decorators.ts",
         "./src/test/test.ts",
+        "./src/test/testUseDecorator.ts",
         "./test/decorators.d.ts",
         "./test/test.d.ts",
+        "./test/testUseDecorator.d.ts",
         "./typings/es6/es6.d.ts",
         "./typings/node/node.d.ts",
         "./typings/tsd.d.ts",

@@ -1,2 +1,1 @@
-export declare class A {
-}
+export declare function a(): void;
