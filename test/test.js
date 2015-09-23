@@ -1,9 +1,8 @@
-var rawGenerator_1 = require('../lib/rawGenerator');
-var fs = require('fs');
+var astToFactory_1 = require('../lib/astToFactory');
 var s = require('typescript-schema');
-var rawPkg = rawGenerator_1.generateRawPackage('.');
-s.convertRawModules(rawPkg);
-fs.writeFileSync('test/test.json', s.stringifyModules(rawPkg));
+var rawPkg = astToFactory_1.packageAstToFactory('.');
+var reflective = rawPkg.construct(s.factoryToReflective())();
+console.log(reflective);
 function a() { }
 exports.a = a;
 //# sourceMappingURL=test.js.map
