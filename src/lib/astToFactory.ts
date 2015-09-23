@@ -607,7 +607,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
       typeParameters = parentTypeParameters
     }
 
-    functionTypeFactory.type = (!declaration.type || declaration.type.kind === ts.SyntaxKind.VoidKeyword) ? undefined : <s.TypeFactory<any>>processNode(declaration.type, typeParameters)
+    functionTypeFactory.type = processType(tc.getSignatureFromDeclaration(declaration).getReturnType(), typeParameters)
 
     declaration.parameters.forEach(function(paramDec: ts.ParameterDeclaration) {
       let parameter = functionTypeFactory.addParameter((<ts.Identifier>paramDec.name).text)

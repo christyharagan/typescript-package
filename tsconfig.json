@@ -28,10 +28,17 @@
         "./src/lib/model.ts",
         "./src/lib/packageUtils.ts",
         "./src/lib/readerWriter.ts",
+        "./src/test/decorators.ts",
         "./src/test/test.ts",
+        "./test/decorators.d.ts",
         "./test/test.d.ts",
         "./typings/es6/es6.d.ts",
         "./typings/node/node.d.ts",
-        "./typings/tsd.d.ts"
+        "./typings/tsd.d.ts",
+        "./lib/astToFactory.d.ts",
+        "./lib/index.d.ts",
+        "./lib/model.d.ts",
+        "./lib/packageUtils.d.ts",
+        "./lib/readerWriter.d.ts"
     ]
 }
