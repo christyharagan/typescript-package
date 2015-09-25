@@ -28,7 +28,6 @@
         "./src/lib/index.ts",
         "./src/lib/model.ts",
         "./src/lib/packageUtils.ts",
-        "./src/lib/readerWriter.ts",
         "./src/test/decorators.ts",
         "./src/test/test.ts",
         "./src/test/testUseDecorator.ts",

@@ -910,6 +910,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
           if (type.typeKind === s.TypeKind.ENUM) {
             let e = <s.EnumExpressionFactory>s.expressionFactory(s.ExpressionKind.ENUM)
             e.enum = <s.EnumFactory> type
+            e.value = name
             return e
           } else {
             // TODO: This is just temporary
