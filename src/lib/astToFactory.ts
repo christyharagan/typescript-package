@@ -290,31 +290,11 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
 
       let i = 0
       dec = symbol.declarations[0]
-      while (dec.kind === ts.SyntaxKind.VariableDeclaration && (i + 1) < symbol.declarations.length) {
+      while ((dec.kind === ts.SyntaxKind.VariableDeclaration || dec.kind === ts.SyntaxKind.FunctionDeclaration) && (i + 1) < symbol.declarations.length) {
         i++
         dec = symbol.declarations[i]
       }
       name = symbol.name
-
-      // ************** DON'T DELETE ******************
-
-      // TODO: Finish this: This is the start of implementing deeply nested properties
-      // if (dec.kind === ts.SyntaxKind.PropertyAssignment) {
-      //   let pa = <ts.PropertyAssignment>dec
-      //   while (pa) {
-      //     let grandParent = pa.parent.parent
-      //     if (grandParent.kind === ts.SyntaxKind.PropertyAssignment) {
-      //       pa = <ts.PropertyAssignment>grandParent
-      //       name = getName(pa.name) + '.' + name
-      //     } else {
-      //       if (grandParent.kind === ts.SyntaxKind.VariableDeclaration) {
-      //         let va = <ts.VariableDeclaration>grandParent
-      //         name = getName(va.name) + '.' + name
-      //       }
-      //       pa = null
-      //     }
-      //   }
-      // }
 
       isGlobal = !isModule && globals.types[name] === symbol
     }
@@ -416,7 +396,6 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
       let typeQuery = <ts.TypeQueryNode>node
       let typeSymbol = tc.getSymbolAtLocation(typeQuery.exprName)
       let typeQueryFactory = new s.TypeQueryFactory()
-      //let typeSymbol = tc.getSymbolAtLocation(node)
       if (!typeSymbol || !typeSymbol.declarations) {
         return typeQueryFactory
       } else {
@@ -487,7 +466,32 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
           return refinedReference
         }
       } else if (!type.symbol && tc.getSymbolAtLocation(node)) {
-        return closeReference(<s.TypeConstructorFactory<any>>getReference(tc.getSymbolAtLocation(node), false))
+        let sym = tc.getSymbolAtLocation(node)
+        let dec = sym.declarations[0]
+        if (dec.kind === ts.SyntaxKind.PropertyAssignment) {
+          let pa = <ts.PropertyAssignment>dec
+          return processNode((<ts.PropertyAssignment>sym.declarations[0]).initializer, typeParameters)
+
+          // TODO: DO NOT DELETE: This will form part of a more complete solution around expressions
+          // while (pa) {
+          //   let grandParent = pa.parent.parent
+          //   if (grandParent.kind === ts.SyntaxKind.PropertyAssignment) {
+          //     pa = <ts.PropertyAssignment>grandParent
+          //     name = getName(pa.name) + '.' + name
+          //   } else {
+          //     if (grandParent.kind === ts.SyntaxKind.VariableDeclaration) {
+          //       let va = <ts.VariableDeclaration>grandParent
+          //       name = getName(va.name) + '.' + name
+          //     }
+          //     pa = null
+          //   }
+          // }
+        } else {
+        // if (sym.declarations[0].kind === ts.SyntaxKind.PropertySignature) {
+        //   return processNode((<ts.PropertyAssignment>sym.declarations[0]).initializer, typeParameters)
+        // } else {
+          return closeReference(<s.TypeConstructorFactory<any>>getReference(tc.getSymbolAtLocation(node), false))
+        }
       } else {
         return processType(type, typeParameters)
       }
@@ -541,7 +545,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
       case ts.TypeFlags.Intersection:
         let intersectionType = <ts.IntersectionType>type
         let intersectionTypeFactory = new s.UnionOrIntersectionTypeFactory(s.TypeKind.INTERSECTION)
-        intersectionTypeFactory.types = unionType.types.map(function(type){
+        intersectionTypeFactory.types = intersectionType.types.map(function(type){
           return processType(type, typeParameters)
         })
         return intersectionTypeFactory
@@ -605,9 +609,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
         throw new Error('Unexpected reference type: ' + reference.modelKind)
     }
     refinedReference.typeConstructor = reference
-    refinedReference.typeArguments = reference.typeParameters.map(function(){
-      return new s.PrimitiveTypeFactory(s.PrimitiveTypeKind.ANY)
-    })
+
     return refinedReference
   }
 
@@ -643,7 +645,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
     return functionTypeFactory
   }
 
-  function populateMembers(parent: s.AbstractCompositeTypeFactory<any ,any, any>, nodes: ts.NodeArray<ts.Node>, isDecorable:boolean, typeParameters: s.KeyValue<s.TypeParameterFactory<any>>) {
+  function populateMembers<MC extends s.AbstractMemberFactory<any, any, any>>(parent: s.AbstractCompositeTypeFactory<any ,MC, any>, nodes: ts.NodeArray<ts.Node>, isDecorable:boolean, typeParameters: s.KeyValue<s.TypeParameterFactory<any>>) {
     nodes.forEach(function(node) {
       switch (node.kind) {
         case ts.SyntaxKind.IndexSignature:
@@ -665,17 +667,19 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
         case ts.SyntaxKind.PropertySignature:
           let p = <ts.PropertyDeclaration>node
           let propName = <string>getName(p.name)
-          parent.members[propName] = {
-            optional: !!p.questionToken,
-            type: processNode(p.type, typeParameters)
+          let propMember = parent.addMember(propName)
+          propMember.optional = !!p.questionToken
+          propMember.type = <s.TypeFactory<any>>processNode(p.type, typeParameters)
+          if (p.initializer) {
+            propMember.initializer = processExpression(p.initializer, typeParameters)
           }
           break
         default:
           let declaration = <ts.Declaration>node
           let name = <string>getName(declaration.name)
-          parent.members[name] = {
-            type: processNode(node, typeParameters)
-          }
+          let member = parent.addMember(name)
+          member.type = <s.TypeFactory<any>>processNode(node, typeParameters)
+          break
       }
     })
   }
@@ -689,9 +693,6 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
       let s = parent.addValue(name)
       s.valueKind = valueKind
       s.type = processType(tc.getTypeAtLocation(varDec), {})
-      if (!s.type) {
-        console.log(tc.getTypeAtLocation(varDec))
-      }
       if (varDec.initializer) {
         s.initializer = processExpression(varDec.initializer, {})
       }
@@ -741,15 +742,15 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
       newTypeParameterFactories = parentTypeParameters
     }
 
+    processTypeParameters(int, intDec.typeParameters, newTypeParameterFactories)
+
     if (intDec.heritageClauses) {
       intDec.heritageClauses.forEach(function(heritageClause: ts.HeritageClause) {
         if (heritageClause.token === ts.SyntaxKind.ExtendsKeyword) {
-          int.extends = <s.InterfaceFactory[]>processHeritageClause(heritageClause, newTypeParameterFactories)
+          int.extends = processHeritageClause(heritageClause, newTypeParameterFactories)
         }
       })
     }
-
-    processTypeParameters(int, intDec.typeParameters, newTypeParameterFactories)
 
     populateMembers(instanceType, intDec.members, false, newTypeParameterFactories)
 
@@ -804,7 +805,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
     if (clsDec.heritageClauses) {
       clsDec.heritageClauses.forEach(function(heritageClause: ts.HeritageClause) {
         if (heritageClause.token === ts.SyntaxKind.ImplementsKeyword) {
-          cls.implements = <s.InterfaceFactory[]>processHeritageClause(heritageClause, newTypeParameterFactories)
+          cls.implements = processHeritageClause(heritageClause, newTypeParameterFactories)
         } else if (heritageClause.token === ts.SyntaxKind.ExtendsKeyword) {
           cls.extends = <s.ClassFactory>processHeritageClause(heritageClause, newTypeParameterFactories)[0]
         }
@@ -911,11 +912,20 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
             e.enum = <s.EnumFactory> type
             return e
           } else {
-            // TODO
+            // TODO: This is just temporary
+            let e = <s.PrimitiveExpressionFactory<any>>s.expressionFactory(s.ExpressionKind.PRIMITIVE)
+            e.primitiveTypeKind = s.PrimitiveTypeKind.ANY
+            return e
           }
         }
+      case ts.SyntaxKind.NewExpression:
+        // TODO
       default:
-        throw 'Unsupported expression'
+        let e = <s.PrimitiveExpressionFactory<any>>s.expressionFactory(s.ExpressionKind.PRIMITIVE)
+        e.primitiveTypeKind = s.PrimitiveTypeKind.ANY
+        return e
+        // TODO: This is just temporary
+        //throw new Error('Unsupported expression: ' + expression.getText())
     }
   }
 
