@@ -1,6 +1,6 @@
 {
   "name": "typescript-package",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "A convenience library for generating typescript-schema reflective models from typescript code.",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
