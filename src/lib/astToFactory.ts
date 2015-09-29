@@ -741,8 +741,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
     } else {
       newTypeParameterFactories = parentTypeParameters
     }
-
-    processTypeParameters(int, intDec.typeParameters, newTypeParameterFactories)
+    //processTypeParameters(int, intDec.typeParameters, newTypeParameterFactories)
 
     if (intDec.heritageClauses) {
       intDec.heritageClauses.forEach(function(heritageClause: ts.HeritageClause) {
@@ -838,9 +837,10 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
     Object.keys(parentTypeParameters).forEach(function(name){
       newTypeParameterFactories[name] = parentTypeParameters[name]
     })
-    if (typeParameters && parent.typeParameters.length === 0) {
-      typeParameters.forEach(function(typeParameter){
-        let typeParameterFactory = parent.addTypeParameter(typeParameter.name.text)
+    if (typeParameters) {
+      let shouldAdd = parent.typeParameters.length === 0
+      typeParameters.forEach(function(typeParameter, i){
+        let typeParameterFactory = shouldAdd ? parent.addTypeParameter(typeParameter.name.text) : parent.typeParameters[i]
         if (typeParameter.constraint) {
           typeParameterFactory.extends = <s.TypeFactory<any>>processNode(typeParameter.constraint, parentTypeParameters)
         }
@@ -853,11 +853,31 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
   function processExpression(expression: ts.Expression, typeParameters: s.KeyValue<s.TypeParameterFactory<any>>): s.AbstractExpressionFactory<any> {
     switch (expression.kind) {
       case ts.SyntaxKind.Identifier:
-
-        // TODO MORE THAN JUST CLASS
-        let cls = processNode(expression, typeParameters)
-        let clsRefExpression = new s.ClassReferenceExpressionFactory()
-        clsRefExpression.classReference = <s.ClassConstructorFactory>processNode(expression, typeParameters)
+        let symbol = tc.getSymbolAtLocation(expression)
+        if (symbol) {
+          let aliasedSymbol = tc.getAliasedSymbol(symbol)
+          if (aliasedSymbol && aliasedSymbol.valueDeclaration) {
+            switch (aliasedSymbol.valueDeclaration.kind) {
+              case ts.SyntaxKind.VariableDeclaration:
+              case ts.SyntaxKind.FunctionDeclaration:
+              case ts.SyntaxKind.ClassDeclaration:
+                let dec = <ts.Declaration>aliasedSymbol.valueDeclaration
+                let valueExpression = new s.ValueExpressionFactory()
+                valueExpression.value = <s.ValueFactory<any>>getReference(dec, false)
+                return valueExpression
+            }
+          }
+        }
+        let id = processNode(expression, typeParameters)
+        if (id.modelKind === s.ModelKind.CLASS_CONSTRUCTOR) {
+          let clsRefExpression = new s.ClassReferenceExpressionFactory()
+          clsRefExpression.classReference = <s.ClassConstructorFactory>id
+          return clsRefExpression
+        } else {
+          console.log(id)
+          // TODO
+          throw 'Unsupported indentifier: ' + expression.getText()
+        }
       case ts.SyntaxKind.ClassExpression:
         let classExpression = <ts.ClassExpression>expression
         let clsExpressionsFactory = new s.ClassExpressionFactory()
