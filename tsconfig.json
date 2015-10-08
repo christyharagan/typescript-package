@@ -24,6 +24,11 @@
     ],
     "compileOnSave": true,
     "files": [
+        "./lib/astToFactory.d.ts",
+        "./lib/index.d.ts",
+        "./lib/model.d.ts",
+        "./lib/packageUtils.d.ts",
+        "./lib/readerWriter.d.ts",
         "./src/lib/astToFactory.ts",
         "./src/lib/index.ts",
         "./src/lib/model.ts",
@@ -34,13 +39,7 @@
         "./test/decorators.d.ts",
         "./test/test.d.ts",
         "./test/testUseDecorator.d.ts",
-        "./typings/es6/es6.d.ts",
         "./typings/node/node.d.ts",
-        "./typings/tsd.d.ts",
-        "./lib/astToFactory.d.ts",
-        "./lib/index.d.ts",
-        "./lib/model.d.ts",
-        "./lib/packageUtils.d.ts",
-        "./lib/readerWriter.d.ts"
+        "./typings/tsd.d.ts"
     ]
 }
