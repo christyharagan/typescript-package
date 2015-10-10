@@ -1,1 +1,0 @@
-{"version":3,"file":"readerWriter.js","sourceRoot":"./","sources":["lib/readerWriter.ts"],"names":["writePackageSchema","readPackageSchema"],"mappings":"AAOA,4BAAmC,MAAc,EAAE,OAA4B,EAAE,IAAsB,EAAE,UAAmB;IAO5HA,MAAMA,CAACA,IAAIA,CAAAA;AACXA,CAACA;AARe,0BAAkB,qBAQjC,CAAA;AAED,2BAAkC,MAAc,EAAE,UAAmB;IAGnEC,MAAMA,CAACA,IAAIA,CAAAA;AACbA,CAACA;AAJe,yBAAiB,oBAIhC,CAAA"}

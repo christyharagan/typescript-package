@@ -1,6 +1,5 @@
 {
     "compilerOptions": {
-        "emitDecoratorMetadata": true,
         "declaration": true,
         "module": "commonjs",
         "rootDir": "./src",
@@ -14,32 +13,8 @@
         "indentSize": 2,
         "tabSize": 2
     },
-    "filesGlob": [
-        "./src/**/*.ts",
-        "./test/**/*.ts",
-        "./typings/**/*.d.ts",
-        "./node_modules/*/*.d.ts",
-        "./lib/**/*.d.ts",
-        "./node_modules/typescript/bin/typescript.d.ts"
-    ],
     "compileOnSave": true,
-    "files": [
-        "./lib/astToFactory.d.ts",
-        "./lib/index.d.ts",
-        "./lib/model.d.ts",
-        "./lib/packageUtils.d.ts",
-        "./lib/readerWriter.d.ts",
-        "./src/lib/astToFactory.ts",
-        "./src/lib/index.ts",
-        "./src/lib/model.ts",
-        "./src/lib/packageUtils.ts",
-        "./src/test/decorators.ts",
-        "./src/test/test.ts",
-        "./src/test/testUseDecorator.ts",
-        "./test/decorators.d.ts",
-        "./test/test.d.ts",
-        "./test/testUseDecorator.d.ts",
-        "./typings/node/node.d.ts",
-        "./typings/tsd.d.ts"
+    "exclude": [
+        "node_modules"
     ]
 }
