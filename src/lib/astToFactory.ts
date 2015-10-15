@@ -7,12 +7,13 @@ import * as utils from './packageUtils'
 
 export function packageAstToFactory(pkgDir: string, options?: ts.CompilerOptions, host?: ts.CompilerHost): s.PackageFactory {
   let allRawModules: s.KeyValue<s.ModuleFactory> = {}
-  let packageJson = utils.getPackageJson(pkgDir)
+//  let packageJson = utils.getPackageJson(pkgDir)
+//  let tsConfig = utils.getTSConfig(pkgDir)
   let files = utils.getSourceFilesList(pkgDir)
-  files = loadAllFiles(files)
-
+//  files = loadAllFiles(files)
+//console.log(files)
   let pkgs: s.KeyValue<[string, string]> = {}
-  let p = ts.createProgram(files, options || { target: ts.ScriptTarget.ES5, moduleResolution: ts.ModuleResolutionKind.NodeJs }, host)
+  let p = utils.getProgram(pkgDir, options, host)
 
   p.getSourceFiles().forEach(function(sf) {
     let file = sf.fileName
@@ -1011,41 +1012,6 @@ function getGlobals(p: ts.Program): Globals {
     modules: modules,
     namespaces: namespaces
   }
-}
-
-function loadAllFiles(files: string[]): string[] {
-  let allFiles: s.KeyValue<boolean> = {}
-  let allFilesArr: string[] = []
-  files.forEach(function(fileName) {
-    allFilesArr.push(fileName)
-  })
-
-  function loadFile(fileName: string) {
-    if (!allFiles[fileName]) {
-      allFiles[fileName] = true
-      allFilesArr.push(fileName)
-
-      let processed = ts.preProcessFile(fs.readFileSync(fileName).toString(), true)
-
-      processed.referencedFiles.concat(processed.importedFiles).forEach(function(referencedFile) {
-        let referenceFileName = path.join(path.dirname(fileName), referencedFile.fileName)
-        if (referenceFileName.indexOf('.ts') !== referenceFileName.length - 3) {
-          if (fs.existsSync(referenceFileName + '.ts')) {
-            referenceFileName += '.ts'
-          } else {
-            referenceFileName += '.d.ts'
-          }
-        }
-        if (fs.existsSync(referenceFileName)) {
-          loadFile(referenceFileName)
-        }
-      })
-    }
-  }
-
-  files.forEach(loadFile)
-
-  return allFilesArr
 }
 
 function isExported(node: ts.Node):boolean {

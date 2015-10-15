@@ -3,11 +3,15 @@ import * as s from 'typescript-schema'
 
 export interface PackageJSON {
   name: string
-  dependencies: { [name: string]: string }
+  version: string
+  description?: string
+  dependencies?: { [name: string]: string }
   main?: string
+  typings?: string
 }
 
 export interface TSConfigJSON {
   compilerOptions: ts.CompilerOptions
-  files: string[]
+  files?: string[]
+  exclude?: string[]
 }

@@ -4,13 +4,69 @@ import * as m from './model'
 import * as ts from 'typescript'
 
 export function getProgram(packageDir: string, options?: ts.CompilerOptions, host?: ts.CompilerHost) {
-  return ts.createProgram(getSourceFilesList(packageDir), options || { target: ts.ScriptTarget.ES5 }, host)
+  let files = loadAllFiles(getSourceFilesList(packageDir))
+  let tsConfig = getTSConfig(packageDir)
+//console.log(tsConfig)
+  return ts.createProgram(files, options || {
+    target: tsConfig.compilerOptions.target,
+    moduleResolution:tsConfig.compilerOptions.moduleResolution
+  }, host)
+//  return ts.createProgram(getSourceFilesList(packageDir), options || { target: ts.ScriptTarget.ES5 }, host)
+}
+
+export function loadAllFiles(files: string[]): string[] {
+  let allFiles: {[fileName:string]:boolean} = {}
+  let allFilesArr: string[] = []
+  files.forEach(function(fileName) {
+    allFilesArr.push(fileName)
+  })
+
+  function loadFile(fileName: string) {
+    if (!allFiles[fileName]) {
+      allFiles[fileName] = true
+      allFilesArr.push(fileName)
+
+      let processed = ts.preProcessFile(fs.readFileSync(fileName).toString(), true)
+
+      processed.referencedFiles.concat(processed.importedFiles).forEach(function(referencedFile) {
+        let referenceFileName = path.join(path.dirname(fileName), referencedFile.fileName)
+        if (referenceFileName.indexOf('.ts') !== referenceFileName.length - 3) {
+          if (fs.existsSync(referenceFileName + '.ts')) {
+            referenceFileName += '.ts'
+          } else {
+            referenceFileName += '.d.ts'
+          }
+        }
+        if (fs.existsSync(referenceFileName)) {
+          loadFile(referenceFileName)
+        }
+      })
+    }
+  }
+
+  files.forEach(loadFile)
+
+  return allFilesArr
 }
 
 export function getSourceFilesList(packageDir: string): string[] {
-  return getTSConfig(packageDir).files.map(function(file) {
-    return path.join(packageDir, file)
-  })
+  let tsConfig = getTSConfig(packageDir)
+  //let tsConfig = <m.TSConfigJSON>ts.readConfigFile(path)
+  if (tsConfig.files) {
+    return tsConfig.files.map(function(file) {
+      return path.join(packageDir, file)
+    })
+  } else {
+    return ts.sys.readDirectory(packageDir, '.ts', tsConfig.exclude)
+      .concat(ts.sys.readDirectory(packageDir, '.tsx', tsConfig.exclude))
+      .concat(ts.sys.readDirectory(packageDir, '.d.ts', tsConfig.exclude)).map(function(file){
+        if (file.substring(0, 2) === './' || file.substring(0, 2) === '.\\') {
+          return file.substring(2)
+        } else {
+          return file
+        }
+      })
+  }
 }
 
 export function getPackageJson(packageDir: string): m.PackageJSON {
@@ -18,7 +74,30 @@ export function getPackageJson(packageDir: string): m.PackageJSON {
 }
 
 export function getTSConfig(packageDir: string): m.TSConfigJSON {
-  return <m.TSConfigJSON>JSON.parse(fs.readFileSync(path.join(packageDir, 'tsconfig.json')).toString())
+  let tsConfigPath = path.join(packageDir, 'tsconfig.json')
+  let tsConfig = ts.readConfigFile(tsConfigPath).config
+  tsConfig.compilerOptions.target = (()=>{
+    switch ((<string>tsConfig.compilerOptions.target).toLowerCase()) {
+      case 'es3':
+        return ts.ScriptTarget.ES3
+      case 'es5':
+        return ts.ScriptTarget.ES5
+      case 'es6':
+        return ts.ScriptTarget.ES6
+      default:
+        return ts.ScriptTarget.Latest
+    }
+  })()
+  tsConfig.compilerOptions.moduleResolution = (()=>{
+    switch (tsConfig.compilerOptions.moduleResolution ? (<string>tsConfig.compilerOptions.moduleResolution).toLowerCase() : '') {
+      case 'node':
+        return ts.ModuleResolutionKind.NodeJs
+      case 'es5':
+      default:
+        return ts.ModuleResolutionKind.Classic
+    }
+  })()
+  return <m.TSConfigJSON>tsConfig
 }
 
 export type RelativePrefix = (fileName:string, relativeModuleName:string)=>string
