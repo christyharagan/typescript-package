@@ -6,12 +6,10 @@ import * as ts from 'typescript'
 export function getProgram(packageDir: string, options?: ts.CompilerOptions, host?: ts.CompilerHost) {
   let files = loadAllFiles(getSourceFilesList(packageDir))
   let tsConfig = getTSConfig(packageDir)
-//console.log(tsConfig)
   return ts.createProgram(files, options || {
     target: tsConfig.compilerOptions.target,
     moduleResolution:tsConfig.compilerOptions.moduleResolution
   }, host)
-//  return ts.createProgram(getSourceFilesList(packageDir), options || { target: ts.ScriptTarget.ES5 }, host)
 }
 
 export function loadAllFiles(files: string[]): string[] {
@@ -51,7 +49,6 @@ export function loadAllFiles(files: string[]): string[] {
 
 export function getSourceFilesList(packageDir: string): string[] {
   let tsConfig = getTSConfig(packageDir)
-  //let tsConfig = <m.TSConfigJSON>ts.readConfigFile(path)
   if (tsConfig.files) {
     return tsConfig.files.map(function(file) {
       return path.join(packageDir, file)

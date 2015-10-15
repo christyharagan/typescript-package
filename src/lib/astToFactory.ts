@@ -7,11 +7,7 @@ import * as utils from './packageUtils'
 
 export function packageAstToFactory(pkgDir: string, options?: ts.CompilerOptions, host?: ts.CompilerHost): s.PackageFactory {
   let allRawModules: s.KeyValue<s.ModuleFactory> = {}
-//  let packageJson = utils.getPackageJson(pkgDir)
-//  let tsConfig = utils.getTSConfig(pkgDir)
   let files = utils.getSourceFilesList(pkgDir)
-//  files = loadAllFiles(files)
-//console.log(files)
   let pkgs: s.KeyValue<[string, string]> = {}
   let p = utils.getProgram(pkgDir, options, host)
 
