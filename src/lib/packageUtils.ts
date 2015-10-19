@@ -72,7 +72,7 @@ export function getPackageJson(packageDir: string): m.PackageJSON {
 
 export function getTSConfig(packageDir: string): m.TSConfigJSON {
   let tsConfigPath = path.join(packageDir, 'tsconfig.json')
-  let tsConfig = ts.readConfigFile(tsConfigPath).config
+  let tsConfig = JSON.parse(fs.readFileSync(tsConfigPath).toString())
   tsConfig.compilerOptions.target = (()=>{
     switch ((<string>tsConfig.compilerOptions.target).toLowerCase()) {
       case 'es3':
