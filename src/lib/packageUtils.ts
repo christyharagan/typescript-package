@@ -89,7 +89,6 @@ export function getTSConfig(packageDir: string): m.TSConfigJSON {
     switch (tsConfig.compilerOptions.moduleResolution ? (<string>tsConfig.compilerOptions.moduleResolution).toLowerCase() : '') {
       case 'node':
         return ts.ModuleResolutionKind.NodeJs
-      case 'es5':
       default:
         return ts.ModuleResolutionKind.Classic
     }

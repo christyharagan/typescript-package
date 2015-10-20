@@ -11,13 +11,34 @@ export function packageAstToFactory(pkgDir: string, options?: ts.CompilerOptions
   let pkgs: s.KeyValue<[string, string]> = {}
   let p = utils.getProgram(pkgDir, options, host)
 
+  while (!fs.existsSync(path.join(pkgDir, 'package.json'))) {
+    if (pkgDir === path.join(pkgDir, '..')) {
+      throw new Error('Package not found')
+    }
+    pkgDir = path.dirname(pkgDir)
+  }
+
   p.getSourceFiles().forEach(function(sf) {
     let file = sf.fileName
     let dirName = path.dirname(file)
     while (true) {
-      if (fs.existsSync(path.join(dirName, 'package.json'))) {
+      if (fs.existsSync(path.join(dirName, 'tsconfig.json')) || fs.existsSync(path.join(dirName, 'package.json'))) {
+        let rootDir = '.'
+        if (fs.existsSync(path.join(dirName, 'tsconfig.json'))) {
+          rootDir = utils.getTSConfig(dirName).compilerOptions.rootDir || rootDir
+          if (file.indexOf(path.join(dirName, rootDir)) !== 0) {
+            rootDir = '.'
+          }
+        }
+        rootDir = path.join(dirName, rootDir)
+        while (!fs.existsSync(path.join(dirName, 'package.json'))) {
+          if (dirName === path.join(dirName, '..')) {
+            throw new Error('Package not found for file: ' + file)
+          }
+          dirName = path.dirname(dirName)
+        }
         let pkgJson = <m.PackageJSON>JSON.parse(fs.readFileSync(path.join(dirName, 'package.json')).toString())
-        pkgs[file] = [pkgJson.name, path.relative(pkgDir, dirName).replace(/\\/g, '/')]
+        pkgs[file] = [pkgJson.name, path.relative(pkgDir, rootDir).replace(/\\/g, '/')]
         break
       } else {
         dirName = path.dirname(dirName)
@@ -552,6 +573,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
         reference = getReference(referenceType.target.symbol, false)
         break
       case ts.TypeFlags.Anonymous:
+      case ts.TypeFlags.Anonymous + ts.TypeFlags.Instantiated:
         let declaration = type.symbol.declarations[0]
         switch (declaration.kind) {
           case ts.SyntaxKind.FunctionDeclaration:
@@ -666,7 +688,7 @@ export function moduleAstsToFactory(p: ts.Program, rootDir: string, relativePref
           let propName = <string>getName(p.name)
           let propMember = parent.addMember(propName)
           propMember.optional = !!p.questionToken
-          propMember.type = <s.TypeFactory<any>>processNode(p.type, typeParameters)
+          propMember.type = <s.TypeFactory<any>>processNode(p.type || p, typeParameters)
           if (p.initializer) {
             propMember.initializer = processExpression(p.initializer, typeParameters)
           }
